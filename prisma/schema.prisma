@@ -1,0 +1,231 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email     String   @unique
+  passwordHash String
+  role      Role     @default(MARKETER)
+  balance   Decimal  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  leadTypes LeadType[]
+  leads     LeadPublic[]
+  orders    Order[]
+  consents  Consent[]
+  auditLogs AuditLog[]
+  payouts   Payout[]
+  approvingPayouts Payout[] @relation("PayoutApprover")
+  rejectingPayouts Payout[] @relation("PayoutRejector")
+  balanceTopups BalanceTopup[]
+  approvingTopups BalanceTopup[] @relation("TopupApprover")
+  rejectingTopups BalanceTopup[] @relation("TopupRejector")
+
+  @@map("users")
+}
+
+enum Role {
+  MARKETER
+  MANAGER
+  ADMIN
+}
+
+model LeadType {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  companyId   String   @db.Uuid
+  title       String
+  description String?
+  basePrice   Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company User        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leads   LeadPublic[]
+
+  @@map("lead_types")
+}
+
+model LeadPublic {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  leadTypeId String    @db.Uuid
+  marketerId String    @db.Uuid
+  city       String
+  price      Decimal
+  status     LeadStatus @default(NEW)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  leadType LeadType    @relation(fields: [leadTypeId], references: [id], onDelete: Cascade)
+  marketer User        @relation(fields: [marketerId], references: [id], onDelete: Cascade)
+  leadPrivate LeadPrivate?
+  orders   Order[]
+
+  @@map("leads_public")
+}
+
+enum LeadStatus {
+  NEW
+  PUBLISHED
+  SOLD
+}
+
+model LeadPrivate {
+  id        String   @id @db.Uuid
+  phone     String
+  fullName  String
+  consentId String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  lead      LeadPublic @relation(fields: [id], references: [id], onDelete: Cascade)
+  consent   Consent    @relation(fields: [consentId], references: [id], onDelete: Restrict)
+
+  @@map("leads_private")
+}
+
+model Consent {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  marketerId String  @db.Uuid
+  consentText String
+  clientIp  String
+  userAgent String
+  createdAt DateTime @default(now())
+
+  // Relations
+  marketer User          @relation(fields: [marketerId], references: [id], onDelete: Cascade)
+  leadPrivates LeadPrivate[]
+
+  @@map("consent")
+}
+
+model Order {
+  id        String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  leadId    String      @db.Uuid
+  managerId String      @db.Uuid
+  amount    Decimal
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  lead     LeadPublic @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  manager  User       @relation(fields: [managerId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  SUCCESS
+  CANCELLED
+}
+
+model Payment {
+  id         String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId    String        @db.Uuid
+  externalId String?
+  amount     Decimal
+  status     PaymentStatus @default(CREATED)
+  paidAt     DateTime?
+  createdAt  DateTime      @default(now())
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Payout {
+  id        String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String       @db.Uuid
+  amount    Decimal
+  status    PayoutStatus @default(PENDING)
+  requestedAt DateTime    @default(now())
+  approvedAt DateTime?
+  approvedBy String?      @db.Uuid
+  rejectedAt DateTime?
+  rejectedBy String?      @db.Uuid
+  rejectionReason String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver User? @relation("PayoutApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  rejector User? @relation("PayoutRejector", fields: [rejectedBy], references: [id], onDelete: SetNull)
+
+  @@map("payouts")
+}
+
+model BalanceTopup {
+  id        String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String       @db.Uuid
+  amount    Decimal
+  status    TopupStatus  @default(PENDING)
+  requestedAt DateTime    @default(now())
+  approvedAt DateTime?
+  approvedBy String?      @db.Uuid
+  rejectedAt DateTime?
+  rejectedBy String?      @db.Uuid
+  rejectionReason String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approver User? @relation("TopupApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  rejector User? @relation("TopupRejector", fields: [rejectedBy], references: [id], onDelete: SetNull)
+
+  @@map("balance_topups")
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum TopupStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AuditLog {
+  id       String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId   String   @db.Uuid
+  action   String
+  entity   String
+  entityId String
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_log")
+}

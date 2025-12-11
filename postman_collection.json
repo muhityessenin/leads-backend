@@ -1,0 +1,536 @@
+{
+  "info": {
+    "_postman_id": "leads-backend-api-v1",
+    "name": "Leads Backend API - Complete Documentation",
+    "description": "Complete API documentation for Leads Management System backend.\n\n## Overview\nThis Postman collection contains all endpoints for the Leads Backend API:\n- Authentication (register, login)\n- User Management (profile, balance)\n- Lead Types (CRUD operations)\n- Leads (public and private data)\n- Orders (creation and management)\n- Payments (processing and tracking)\n- Consent (user agreements)\n- Audit Logs (activity tracking)\n\n## Setup Instructions\n\n### 1. Environment Variables\nBefore using this collection, set these variables:\n- `base_url`: http://localhost:3000 (or your server URL)\n- `token`: Your JWT token (obtained from /api/auth/login)\n\n### 2. Authentication Flow\n1. Call POST /api/auth/register with email and password\n2. Copy the `token` from response\n3. Set the `token` variable in Postman\n4. All subsequent requests will use this token in Authorization header\n\n### 3. User Roles\n- MARKETER: Can create leads and view their own data\n- MANAGER: Can manage orders and view analytics\n- ADMIN: Full system access\n\n## Important Notes\n- All timestamps are in ISO 8601 format (UTC)\n- Pagination defaults: page=1, limit=10\n- Authentication is required for all endpoints except /api/health and /api/auth/*\n- UUIDs are used for all resource IDs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "0. System Health",
+      "description": "Server status and health check",
+      "item": [
+        {
+          "name": "Health Check (No Auth Required)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Server is running', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.equal(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "**Description:** Check if API server is running and healthy.\n\n**Authentication:** Not required\n\n**Response Fields:**\n- `success` (boolean): Server status\n- `message` (string): Status message\n- `timestamp` (string): Current server timestamp (ISO 8601)\n\n**Use Cases:**\n- Monitor server availability\n- Verify connectivity before making requests\n- Load balancer health checks\n- Startup verification\n\n**Example Response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Server is running\",\n  \"timestamp\": \"2025-12-09T14:40:43.699Z\"\n}\n```"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Authentication",
+      "description": "User registration, login, and JWT token management",
+      "item": [
+        {
+          "name": "Register New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('User registration successful', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(pm.response.json().success).to.equal(true);",
+                  "    pm.expect(pm.response.json().data).to.have.property('user');",
+                  "    pm.expect(pm.response.json().data).to.have.property('token');",
+                  "});",
+                  "",
+                  "// Auto-set token for subsequent requests",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('token', pm.response.json().data.token);",
+                  "    console.log('✓ Token saved. You can now use authenticated endpoints.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"SecurePassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "**Description:** Register a new user account.\n\n**Authentication:** Not required\n\n**Request Body:**\n- `email` (string, required): User email address (must be unique)\n- `password` (string, required): User password (min 6 chars recommended)\n\n**Response (HTTP 201):**\n- `success` (boolean): true\n- `data.user.id` (string): UUID of created user\n- `data.user.email` (string): User email\n- `data.user.role` (string): Default role is MARKETER\n- `data.user.balance` (string): Initial balance (0)\n- `data.token` (string): JWT token for authentication\n\n**Possible Errors:**\n- `Email already exists` (400): Email is already registered\n- `Invalid credentials` (400): Missing required fields\n\n**Token Usage:**\nCopy the token from response and use it in the Authorization header:\n```\nAuthorization: Bearer {token}\n```\n\n**Example Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"email\": \"newuser@example.com\",\n      \"passwordHash\": \"$2a$10$...\",\n      \"role\": \"MARKETER\",\n      \"balance\": \"0\",\n      \"createdAt\": \"2025-12-09T14:40:47.401Z\",\n      \"updatedAt\": \"2025-12-09T14:40:47.401Z\"\n    },\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  }\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login successful', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.equal(true);",
+                  "});",
+                  "",
+                  "// Auto-set token",
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('token', pm.response.json().data.token);",
+                  "    console.log('✓ Token updated');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "**Description:** Authenticate user and receive JWT token.\n\n**Authentication:** Not required\n\n**Request Body:**\n- `email` (string, required): User email address\n- `password` (string, required): User password\n\n**Response (HTTP 200):**\n- `success` (boolean): true\n- `data.user` (object): Authenticated user data\n- `data.token` (string): JWT token for subsequent requests\n\n**Token Expiration:**\n- Default: 7 days\n- To extend: Call login again\n\n**Possible Errors:**\n- `Invalid credentials` (400): Wrong email/password\n- `User not found` (404): Email not registered\n\n**Example Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"email\": \"user@example.com\",\n      \"role\": \"MARKETER\",\n      \"balance\": \"100\",\n      \"createdAt\": \"2025-12-09T14:40:47.401Z\"\n    },\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  }\n}\n```"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. User Management",
+      "description": "User profile, settings, and account management",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('token')) {",
+                  "    throw new Error('⚠ Token not set! Run Login or Register first.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Profile retrieved', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.equal(true);",
+                  "    pm.expect(pm.response.json().data).to.have.property('id');",
+                  "    pm.expect(pm.response.json().data).to.have.property('email');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "description": "JWT token from login/register"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            },
+            "description": "**Description:** Get current authenticated user's profile.\n\n**Authentication:** Required (Bearer token)\n\n**Response (HTTP 200):**\n- `success` (boolean): true\n- `data` (object): User profile object\n  - `id` (string): User UUID\n  - `email` (string): User email\n  - `role` (string): User role (MARKETER, MANAGER, ADMIN)\n  - `balance` (string): Account balance (Decimal as string)\n  - `createdAt` (string): Account creation timestamp\n  - `updatedAt` (string): Last update timestamp\n\n**Possible Errors:**\n- `401 Unauthorized` (401): Missing or invalid token\n- `404 Not Found` (404): User not found\n\n**Example Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"email\": \"user@example.com\",\n    \"role\": \"MARKETER\",\n    \"balance\": \"250.50\",\n    \"createdAt\": \"2025-12-09T14:40:47.401Z\",\n    \"updatedAt\": \"2025-12-09T15:30:20.123Z\"\n  }\n}\n```"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Lead Types",
+      "description": "Lead type management - create and browse lead categories",
+      "item": [
+        {
+          "name": "Create Lead Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lead type created', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(pm.response.json().success).to.equal(true);",
+                  "    if (pm.response.json().data && pm.response.json().data.id) {",
+                  "        pm.environment.set('leadTypeId', pm.response.json().data.id);",
+                  "        console.log('✓ Lead Type ID saved: ' + pm.response.json().data.id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mobile Phone Leads\",\n  \"description\": \"High-quality mobile phone buyer leads with verified contact info\",\n  \"basePrice\": 5.99\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/lead-types",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lead-types"]
+            },
+            "description": "**Description:** Create a new lead type.\n\n**Authentication:** Required\n\n**Request Body:**\n- `title` (string, required): Lead type name/category\n- `description` (string, optional): Detailed description\n- `basePrice` (number, required): Base price per lead\n\n**Response (HTTP 201):**\n- `success` (boolean): true\n- `data` (object): Created lead type\n  - `id` (string): UUID of lead type\n  - `companyId` (string): Company/creator UUID\n  - `title` (string): Lead type name\n  - `basePrice` (string): Price as Decimal\n  - `createdAt`, `updatedAt` (strings): Timestamps\n\n**Possible Errors:**\n- `401 Unauthorized`: Missing/invalid token\n- `400 Bad Request`: Missing required fields\n\n**Example Response:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"f47ac10b-58cc-4372-a567-0e02b2c3d479\",\n    \"companyId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"title\": \"Mobile Phone Leads\",\n    \"description\": \"High-quality mobile phone buyer leads...\",\n    \"basePrice\": \"5.99\",\n    \"createdAt\": \"2025-12-09T14:45:00.000Z\",\n    \"updatedAt\": \"2025-12-09T14:45:00.000Z\"\n  }\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Lead Types",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lead types retrieved', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.equal(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/lead-types?page=1&limit=10",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lead-types"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Results per page (default: 10)"
+                }
+              ]
+            },
+            "description": "**Description:** Get all lead types with pagination.\n\n**Authentication:** Required\n\n**Query Parameters:**\n- `page` (number, optional): Page number (starts at 1)\n- `limit` (number, optional): Results per page\n\n**Response (HTTP 200):**\n- `success` (boolean): true\n- `data` (array): Array of lead type objects\n- `total` (number): Total lead types count\n- `page`, `limit`, `totalPages` (numbers): Pagination info\n\n**Example Response:**\n```json\n{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"f47ac10b-58cc-4372-a567-0e02b2c3d479\",\n      \"title\": \"Mobile Phone Leads\",\n      \"basePrice\": \"5.99\",\n      \"createdAt\": \"2025-12-09T14:45:00.000Z\"\n    }\n  ],\n  \"total\": 1,\n  \"page\": 1,\n  \"limit\": 10,\n  \"totalPages\": 1\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Lead Type by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/lead-types/{{leadTypeId}}",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lead-types", "{{leadTypeId}}"]
+            },
+            "description": "**Description:** Get a specific lead type by ID.\n\n**Authentication:** Required\n\n**URL Parameters:**\n- `id` (string, required): Lead type UUID (e.g., from 'Create Lead Type' response)\n\n**Response (HTTP 200):**\n- Single lead type object\n\n**Possible Errors:**\n- `404 Not Found`: Lead type doesn't exist\n- `401 Unauthorized`: Invalid token"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Leads",
+      "description": "Lead management - create and browse leads",
+      "item": [
+        {
+          "name": "Create Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Lead created', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "    if (pm.response.json().data && pm.response.json().data.id) {",
+                  "        pm.environment.set('leadId', pm.response.json().data.id);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadTypeId\": \"{{leadTypeId}}\",\n  \"city\": \"New York\",\n  \"price\": 5.99,\n  \"status\": \"NEW\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/leads",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leads"]
+            },
+            "description": "**Description:** Create a new lead.\n\n**Authentication:** Required\n\n**Request Body:**\n- `leadTypeId` (string, required): UUID of existing lead type\n- `city` (string, required): Lead location city\n- `price` (number, required): Lead selling price\n- `status` (string, optional): Status (NEW, PUBLISHED, SOLD) - default: NEW\n\n**Response (HTTP 201):**\n- Created lead object with public data\n\n**Note:** Use 'Create Lead Type' first to get a valid leadTypeId"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Leads",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/leads?page=1&limit=10",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leads"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "**Description:** Get all leads with pagination.\n\n**Authentication:** Required\n\n**Query Parameters:**\n- `page` (number, optional)\n- `limit` (number, optional)\n\n**Response:** Paginated lead objects"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Orders",
+      "description": "Order management - create and view orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 && pm.response.json().data && pm.response.json().data.id) {",
+                  "    pm.environment.set('orderId', pm.response.json().data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{leadId}}\",\n  \"amount\": 5.99,\n  \"status\": \"CREATED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "**Description:** Create an order for a lead.\n\n**Authentication:** Required\n\n**Request Body:**\n- `leadId` (string, required): UUID of the lead\n- `amount` (number, required): Order amount\n- `status` (string, optional): CREATED, PROCESSING, COMPLETED, FAILED\n\n**Note:** Create a lead first using 'Create Lead' endpoint"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Payments",
+      "description": "Payment processing and tracking",
+      "item": [
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"amount\": 5.99,\n  \"status\": \"CREATED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments"]
+            },
+            "description": "**Description:** Create a payment for an order.\n\n**Authentication:** Required\n\n**Request Body:**\n- `orderId` (string, required): UUID of existing order\n- `amount` (number, required): Payment amount\n- `status` (string, optional): CREATED, PAID, FAILED, REFUNDED"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Consent",
+      "description": "User consent tracking and management",
+      "item": [
+        {
+          "name": "Create Consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consentText\": \"I agree to the terms and conditions and privacy policy\",\n  \"clientIp\": \"192.168.1.1\",\n  \"userAgent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/consent",
+              "protocol": "http",
+              "host": ["{{base_url}}"],
+              "path": ["api", "consent"]
+            },
+            "description": "**Description:** Record user consent for tracking and compliance.\n\n**Authentication:** Required\n\n**Request Body:**\n- `consentText` (string, required): Consent agreement text\n- `clientIp` (string, required): Client's IP address\n- `userAgent` (string, required): Client's user agent string"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "leadTypeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "leadId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -39,7 +39,7 @@ services:
       ONE_VISION_API_KEY: ${ONE_VISION_API_KEY:-test_api_key}
       ONE_VISION_API_URL: https://api.onevision.io
     ports:
-      - "3000:3000"
+      - "5050:3000"
     depends_on:
       postgres:
         condition: service_healthy

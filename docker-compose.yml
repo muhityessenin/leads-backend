@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -22,23 +22,35 @@ services:
       - leads-network
 
   backend:
-  build:
-    context: .
-    dockerfile: Dockerfile
-  container_name: leads-backend
-  environment:
-    NODE_ENV: production
-    PORT: 3000
-    DATABASE_URL: postgresql://leads_user:leads_password@postgres:5432/leads_db
-    JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
-    JWT_EXPIRY: 7d
-  ports:
-    - "5050:3000"
-  depends_on:
-    postgres:
-      condition: service_healthy
-  networks:
-    - leads-network
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: leads-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://leads_user:leads_password@postgres:5432/leads_db
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+      JWT_EXPIRY: 7d
+      BCRYPT_ROUNDS: 10
+      LOG_LEVEL: debug
+      FRONTEND_URL: http://localhost:3000
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-webhook_secret_key}
+      ONE_VISION_API_KEY: ${ONE_VISION_API_KEY:-test_api_key}
+      ONE_VISION_API_URL: https://api.onevision.io
+    ports:
+      - "5050:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - leads-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   prisma-migrate:
     build:
@@ -52,15 +64,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - .:/app
-      - /app/node_modules
     networks:
       - leads-network
 
 volumes:
   postgres_data:
-    driver: local
 
 networks:
   leads-network:

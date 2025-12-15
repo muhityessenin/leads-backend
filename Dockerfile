@@ -40,7 +40,7 @@
   # Копируем Prisma client ИЗ BUILDER
   COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
   COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
+  COPY --from=builder /app/prisma ./prisma
   # Копируем билд
   COPY --from=builder /app/dist ./dist
 

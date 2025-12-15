@@ -169,6 +169,78 @@ class AdminController {
       return res.status(400).json({ success: false, error: err.message });
     }
   }
+  // ADMIN: get all payouts
+async getAllPayouts(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    const { status, userId, limit = 20, offset = 0 } = req.query;
+
+    const payouts = await payoutService.getAllPayouts({
+      status: status as string | undefined,
+      userId: userId as string | undefined,
+      limit: Number(limit),
+      offset: Number(offset),
+    });
+
+    return res.json({ success: true, data: payouts });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ADMIN: get single payout
+async getPayoutById(req: AuthRequest, res: Response) {
+  if (!req.user || req.user.role !== 'ADMIN') {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  const payout = await payoutService.getPayoutById(req.params.id);
+  if (!payout) {
+    return res.status(404).json({ success: false, error: 'Payout not found' });
+  }
+
+  return res.json({ success: true, data: payout });
+}
+
+// ADMIN: get all topups
+async getAllTopups(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    const { status, userId, limit = 20, offset = 0 } = req.query;
+
+    const topups = await topupService.getAllTopups({
+      status: status as string | undefined,
+      userId: userId as string | undefined,
+      limit: Number(limit),
+      offset: Number(offset),
+    });
+
+    return res.json({ success: true, data: topups });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ADMIN: get single topup
+async getTopupById(req: AuthRequest, res: Response) {
+  if (!req.user || req.user.role !== 'ADMIN') {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  const topup = await topupService.getTopupById(req.params.id);
+  if (!topup) {
+    return res.status(404).json({ success: false, error: 'Topup not found' });
+  }
+
+  return res.json({ success: true, data: topup });
+}
+
 }
 
 export default new AdminController();

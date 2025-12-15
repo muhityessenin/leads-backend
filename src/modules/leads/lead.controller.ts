@@ -229,6 +229,7 @@ export class LeadController {
       });
     }
   }
+  
 }
 
 export default new LeadController();

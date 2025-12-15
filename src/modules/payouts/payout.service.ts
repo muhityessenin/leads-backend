@@ -132,6 +132,30 @@ export class PayoutService {
       },
     });
   }
+  async getAllPayouts(filters: {
+  status?: string;
+  userId?: string;
+  limit: number;
+  offset: number;
+}) {
+  const { status, userId, limit, offset } = filters;
+
+  return prisma.payout.findMany({
+    where: {
+      ...(status && { status: status as any }),
+      ...(userId && { userId }),
+    },
+    include: {
+      user: true,
+      approver: true,
+      rejector: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    skip: offset,
+  });
+}
+
 }
 
 export default PayoutService;

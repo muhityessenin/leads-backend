@@ -100,6 +100,30 @@ export class TopupService {
       },
     });
   }
+  async getAllTopups(filters: {
+  status?: string;
+  userId?: string;
+  limit: number;
+  offset: number;
+}) {
+  const { status, userId, limit, offset } = filters;
+
+  return prisma.balanceTopup.findMany({
+    where: {
+      ...(status && { status: status as any }),
+      ...(userId && { userId }),
+    },
+    include: {
+      user: true,
+      approver: true,
+      rejector: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    skip: offset,
+  });
+}
+
 }
 
 export default TopupService;

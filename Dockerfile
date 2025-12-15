@@ -47,4 +47,4 @@
   EXPOSE 3000
 
   ENTRYPOINT ["dumb-init", "--"]
-  CMD ["node", "--experimental-specifier-resolution=node", "dist/src/server.js"]
+  CMD ["sh", "-c", "npx prisma migrate deploy && node --experimental-specifier-resolution=node dist/src/server.js"]

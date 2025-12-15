@@ -1,59 +1,54 @@
+# =========================
 # Build stage
-FROM node:18-alpine as builder
+# =========================
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# 1. Устанавливаем зависимости
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies (full install required to run `prisma generate`)
-RUN npm ci && npm cache clean --force
-
-# Copy Prisma schema and built application (assume project was built locally)
-# We need the schema to run `prisma generate` and produce the generated client
+# 2. Копируем Prisma schema и код
 COPY prisma ./prisma
-COPY . .
+COPY tsconfig*.json ./
+COPY src ./src
+
+# 3. Генерируем Prisma Client ПОД ALPINE (musl)
+RUN npx prisma generate
+
+# 4. Собираем TypeScript
 RUN npm run build
 
 
-# Generate Prisma client so generated files are present in node_modules/.prisma
-RUN npx prisma generate
-
+# =========================
 # Production stage
+# =========================
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install dumb-init and OpenSSL libraries for Prisma query engine
-RUN apk add --no-cache dumb-init openssl-libs-static openssl
+# 5. Минимальные системные зависимости для Prisma
+RUN apk add --no-cache dumb-init openssl
 
-# Copy package files
+# 6. Устанавливаем ТОЛЬКО production-зависимости
 COPY package*.json ./
-
-# Install production dependencies
-
-# Install only production dependencies in the final image
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy generated Prisma client from builder stage so @prisma/client initializes correctly
-COPY --from=0 /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=0 /app/node_modules/@prisma ./node_modules/@prisma
+# 7. Копируем Prisma Client, сгенерированный В BUILDER
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy built application from host context
-COPY ./dist ./dist
+# 8. Копируем собранный JS (ТОЛЬКО из builder!)
+COPY --from=builder /app/dist ./dist
 
-# Expose port
+# 9. Порт
 EXPOSE 3000
 
-# Health check
+# 10. Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+  CMD node -e "require('http').get('http://localhost:3000/api/health', r => { if (r.statusCode !== 200) process.exit(1) })"
 
-# Use dumb-init to handle signals
+# 11. Запуск
 ENTRYPOINT ["dumb-init", "--"]
-
-# Start application
-# Allow Node to resolve extension-less local imports at runtime (helps with ESM imports
-# emitted by TypeScript when source imports don't include .js extensions).
-# Note: this uses an experimental resolver flag available in Node 18.
-CMD ["node", "--experimental-specifier-resolution=node", "dist/src/server.js"]
+CMD ["node", "dist/src/server.js"]

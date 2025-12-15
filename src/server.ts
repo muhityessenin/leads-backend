@@ -10,11 +10,12 @@ const startServer = async () => {
 
     const app = createApp();
 
-    const server = app.listen(env.port, () => {
-      console.log(`✓ Server running on port ${env.port}`);
-      console.log(`✓ Environment: ${env.nodeEnv}`);
-      console.log(`✓ Health check: http://localhost:${env.port}/api/health`);
+    const PORT = 3000;
+
+    const server = app.listen(PORT, () => {
+      console.log(`✓ Server running on port ${PORT}`);
     });
+
 
     // Graceful shutdown
     const gracefulShutdown = async () => {

@@ -1,4 +1,3 @@
-import env from './config/env';
 import prisma from './config/db';
 import { createApp } from './app';
 

@@ -47,4 +47,4 @@
   EXPOSE 3000
 
   ENTRYPOINT ["dumb-init", "--"]
-  CMD ["node", "dist/src/server.js"]
+  CMD ["node", "--experimental-specifier-resolution=node", "dist/src/server.js"]

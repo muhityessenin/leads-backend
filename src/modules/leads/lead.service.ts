@@ -16,10 +16,10 @@ export class LeadService extends BaseService<ILeadPublic> {
   async createLead(data: {
     leadTypeId: string;
     marketerId: string;
-    city: string;
+    city?: string;
     price: number;
     phone: string;
-    fullName: string;
+    fullName?: string;
     consentText: string;
     clientIp: string;
     userAgent: string;
@@ -42,7 +42,7 @@ export class LeadService extends BaseService<ILeadPublic> {
         id: leadId,
         leadTypeId: data.leadTypeId,
         marketerId: data.marketerId,
-        city: data.city,
+        city: data.city ? data.city : '',
         price: data.price,
         status: 'NEW',
       },
@@ -54,7 +54,7 @@ export class LeadService extends BaseService<ILeadPublic> {
       data: {
         id: leadId,
         phone: data.phone,
-        fullName: data.fullName,
+        fullName: data.fullName ? data.fullName : '',
         consentId: consent.id,
       },
     });

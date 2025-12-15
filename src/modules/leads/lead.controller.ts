@@ -28,19 +28,13 @@ export class LeadController {
         userAgent,
       } = req.body;
 
-      if (
-        !leadTypeId ||
-        !city ||
-        !price ||
-        !phone ||
-        !fullName ||
-        !consentText
-      ) {
+      if (!leadTypeId || !price || !phone || !consentText) {
         return res.status(400).json({
           success: false,
           error: 'Missing required fields',
         });
       }
+
 
       if (!validatePhoneNumber(phone)) {
         return res.status(400).json({

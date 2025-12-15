@@ -62,7 +62,7 @@ model LeadPublic {
   id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   leadTypeId String    @db.Uuid
   marketerId String    @db.Uuid
-  city       String
+  city       String?
   price      Decimal
   status     LeadStatus @default(NEW)
   createdAt  DateTime  @default(now())
@@ -86,7 +86,7 @@ enum LeadStatus {
 model LeadPrivate {
   id        String   @id @db.Uuid
   phone     String
-  fullName  String
+  fullName  String?
   consentId String   @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

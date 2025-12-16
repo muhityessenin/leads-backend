@@ -140,8 +140,33 @@ export class OrderService extends BaseService<IOrder> {
   }
 
   async getOrdersByManager(managerId: string) {
-    return this.orderRepository.findByManager(managerId);
+    const orders = await this.orderRepository.findByManager(managerId);
+
+    const grouped = orders.reduce((acc: any, order) => {
+      const leadType = order.lead.leadType;
+
+      const leadTypeId = leadType.id;
+
+      if (!acc[leadTypeId]) {
+        acc[leadTypeId] = {
+          leadType: {
+            id: leadType.id,
+            title: leadType.title,
+            description: leadType.description,
+            basePrice: leadType.basePrice,
+          },
+          orders: [],
+        };
+      }
+
+      acc[leadTypeId].orders.push(order);
+
+      return acc;
+    }, {});
+
+    return Object.values(grouped);
   }
+
 
   async getOrderForManager(orderId: string, managerId: string) {
     return this.orderRepository.findForManagerById(orderId, managerId);

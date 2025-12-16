@@ -12,12 +12,18 @@ export class OrderRepository extends BaseRepository<IOrder> {
     return prisma.order.findMany({
       where: { managerId },
       include: {
-        lead: { include: { leadPrivate: true } },
+        lead: {
+          include: {
+            leadPrivate: true,
+            leadType: true,
+          },
+        },
         payments: true,
       },
       orderBy: { createdAt: 'desc' },
     });
   }
+
 
   async findByLead(leadId: string) {
     return prisma.order.findMany({
